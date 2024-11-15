@@ -3,11 +3,14 @@ use libflatpak::{gio::Cancellable, prelude::*, Installation, Ref, Transaction};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, fs, io};
 
+const ENTRIES_DIR: &str = "/etc/polycrystal/entries";
+const STATE_PATH: &str = "/var/lib/polycrystal/state";
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
-pub struct FlatpakDefinition {
-    pub id: String,
-    pub remote: String,
-    pub branch: String,
+struct FlatpakDefinition {
+    id: String,
+    remote: String,
+    branch: String,
 }
 
 impl From<&FlatpakDefinition> for libflatpak::Ref {
@@ -21,7 +24,7 @@ impl From<&FlatpakDefinition> for libflatpak::Ref {
 }
 
 fn read_entries() -> io::Result<HashSet<FlatpakDefinition>> {
-    let entries = fs::read_dir("/etc/polycrystal/entries")?
+    let entries = fs::read_dir(ENTRIES_DIR)?
         .filter_ok(|e| e.file_type().is_ok_and(|t| t.is_file()))
         .map_ok(|entry| {
             fs::read_to_string(entry.path())
@@ -35,7 +38,7 @@ fn read_entries() -> io::Result<HashSet<FlatpakDefinition>> {
 }
 
 fn read_state() -> io::Result<HashSet<FlatpakDefinition>> {
-    let str = match fs::read_to_string("/var/lib/polycrystal/state") {
+    let str = match fs::read_to_string(STATE_PATH) {
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(HashSet::new()),
         r => r,
     }?;
@@ -45,7 +48,7 @@ fn read_state() -> io::Result<HashSet<FlatpakDefinition>> {
 }
 
 fn write_state(set: &HashSet<FlatpakDefinition>) -> io::Result<()> {
-    fs::write("/var/lib/polycrystal/state", serde_json::to_string(set)?)?;
+    fs::write(STATE_PATH, serde_json::to_string(set)?)?;
     Ok(())
 }
 
