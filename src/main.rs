@@ -5,8 +5,8 @@ use std::{collections::HashSet, fs, io};
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Hash, Clone)]
 pub struct FlatpakDefinition {
-    pub remote: String,
     pub id: String,
+    pub remote: String,
     pub branch: String,
 }
 
