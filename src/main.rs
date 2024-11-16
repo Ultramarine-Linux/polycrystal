@@ -1,7 +1,12 @@
+use fs4::fs_std::FileExt;
 use itertools::Itertools;
 use libflatpak::{gio::Cancellable, prelude::*, Installation, Ref, Transaction};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, fs, io};
+use std::{
+    collections::HashSet,
+    fs::{self, File},
+    io::{self, Read, Seek, Write},
+};
 
 const ENTRIES_DIR: &str = "/etc/polycrystal/entries";
 const STATE_PATH: &str = "/var/lib/polycrystal/state";
@@ -37,24 +42,37 @@ fn read_entries() -> io::Result<HashSet<FlatpakDefinition>> {
     Ok(HashSet::from_iter(entries))
 }
 
-fn read_state() -> io::Result<HashSet<FlatpakDefinition>> {
-    let str = match fs::read_to_string(STATE_PATH) {
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(HashSet::new()),
-        r => r,
-    }?;
-    Ok(HashSet::from_iter(serde_json::from_str::<
-        Vec<FlatpakDefinition>,
-    >(&str)?))
+fn open_state() -> io::Result<(File, HashSet<FlatpakDefinition>)> {
+    let mut state_file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .open(STATE_PATH)?;
+    state_file.lock_exclusive()?;
+
+    let mut str = String::new();
+    // if the len read is 0, file was just created
+    // we don't return empty set if parsing failed
+    if state_file.read_to_string(&mut str)? == 0 {
+        return Ok((state_file, HashSet::new()));
+    }
+
+    Ok((
+        state_file,
+        HashSet::from_iter(serde_json::from_str::<Vec<FlatpakDefinition>>(&str)?),
+    ))
 }
 
-fn write_state(set: &HashSet<FlatpakDefinition>) -> io::Result<()> {
-    fs::write(STATE_PATH, serde_json::to_string(set)?)?;
+fn write_state(state_file: &mut File, set: &HashSet<FlatpakDefinition>) -> io::Result<()> {
+    state_file.set_len(0)?;
+    state_file.rewind()?;
+    serde_json::to_writer(state_file, set)?;
     Ok(())
 }
 
 fn main() -> color_eyre::Result<()> {
+    let (mut state_file, state) = open_state()?;
     let entries = read_entries()?;
-    let state = read_state()?;
 
     let to_install: HashSet<_> = entries.difference(&state).cloned().collect();
     let to_remove: HashSet<_> = state.difference(&entries).cloned().collect();
@@ -93,7 +111,7 @@ fn main() -> color_eyre::Result<()> {
         println!("no work to do!")
     }
 
-    write_state(&new_state)?;
+    write_state(&mut state_file, &new_state)?;
 
     Ok(())
 }
