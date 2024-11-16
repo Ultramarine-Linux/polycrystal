@@ -22,5 +22,5 @@ An example systemd service file is included to run the installer on boot.
 
 ## TODOs
 - [x] Add a systemd service to run the installer on boot (after RPM tranaction?)
-- [ ] Lock the state file
+- [x] Lock the state file
 - [ ] Look over this code in general
