@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     fs::{self, File},
-    io::{self, Read, Seek, Write},
+    io::{self, Read, Seek},
 };
 
 const ENTRIES_DIR: &str = "/etc/polycrystal/entries";
@@ -47,6 +47,7 @@ fn open_state() -> io::Result<(File, HashSet<FlatpakDefinition>)> {
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(STATE_PATH)?;
     state_file.lock_exclusive()?;
 
@@ -76,11 +77,10 @@ fn main() -> color_eyre::Result<()> {
 
     let to_install: HashSet<_> = entries.difference(&state).cloned().collect();
     let to_remove: HashSet<_> = state.difference(&entries).cloned().collect();
-    let new_state: HashSet<_> = state
-        .difference(&to_remove)
-        .chain(&to_install)
-        .cloned()
-        .collect();
+
+    if to_install.is_empty() && to_remove.is_empty() {
+        return Ok(());
+    }
 
     let system_install = Installation::new_system(Cancellable::NONE)?;
     let transaction = Transaction::for_installation(&system_install, Cancellable::NONE)?;
@@ -106,10 +106,14 @@ fn main() -> color_eyre::Result<()> {
     }
 
     if !transaction.is_empty() {
-        transaction.run(None::<&Cancellable>)?;
-    } else {
-        println!("no work to do!")
+        transaction.run(Cancellable::NONE)?;
     }
+
+    let new_state: HashSet<_> = state
+        .difference(&to_remove)
+        .chain(&to_install)
+        .cloned()
+        .collect();
 
     write_state(&mut state_file, &new_state)?;
 
