@@ -13,9 +13,19 @@ An example systemd service file is included to run the installer on boot.
 ## Definition example
 
 ```json
-{
-  "id": "org.gnome.clocks",
-  "remote": "flathub",
-  "branch": "stable",
-}
+[
+  {
+    "id": "org.gnome.clocks",
+    "remote": "flathub",
+    "branch": "stable",
+  }
+]
 ```
+
+Definitions are stored in /etc/polycrystal/entries/ as JSON files. They are JSON arrays of objects, where each object has the following keys:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| id | string | Yes | The Flatpak application ID |
+| remote | string | Yes | The Flatpak remote name (e.g. "flathub") |
+| branch | string | Yes | The branch to install (e.g. "stable") |
