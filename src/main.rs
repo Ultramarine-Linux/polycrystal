@@ -33,11 +33,12 @@ fn read_entries() -> io::Result<HashSet<FlatpakDefinition>> {
         .filter_ok(|e| e.file_type().is_ok_and(|t| t.is_file()))
         .map_ok(|entry| {
             fs::read_to_string(entry.path())
-                .map(|str| serde_json::from_str::<FlatpakDefinition>(&str))
+                .map(|str| serde_json::from_str::<Vec<FlatpakDefinition>>(&str))
         })
         .flatten()
-        .flatten()
-        .collect::<Result<Vec<_>, serde_json::Error>>()?;
+        .flatten_ok()
+        .flatten_ok()
+        .collect::<Result<Vec<FlatpakDefinition>, std::io::Error>>()?;
 
     Ok(HashSet::from_iter(entries))
 }
