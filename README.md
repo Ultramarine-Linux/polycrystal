@@ -17,7 +17,7 @@ An example systemd service file is included to run the installer on boot.
   {
     "id": "org.gnome.clocks",
     "remote": "flathub",
-    "branch": "stable",
+    "branch": "stable"
   }
 ]
 ```
